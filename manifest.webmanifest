@@ -1,0 +1,29 @@
+{
+  "name": "Diario Sportivo di Igor",
+  "short_name": "Diario Sportivo",
+  "description": "PWA personale di Igor per registrare attività sportive, log, statistiche e backup.",
+  "start_url": "/diario-sportivo-igor/",
+  "scope": "/diario-sportivo-igor/",
+  "display": "standalone",
+  "background_color": "#f6f4ef",
+  "theme_color": "#0d6b6f",
+  "orientation": "portrait-primary",
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f4d8.png",
+      "sizes": "72x72",
+      "type": "image/png"
+    },
+    {
+      "src": "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/192x192/1f4d8.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/512x512/1f4d8.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
