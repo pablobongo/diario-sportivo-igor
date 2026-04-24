@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Diario Sportivo di Igor</title>
+  <meta name="description" content="PWA personale per registrare attività sportive, statistiche e log." />
+  <style>
+    :root {
+      --bg: #f6f4ef;
+      --card: #ffffff;
+      --text: #1f1f1c;
+      --muted: #6f6c66;
+      --primary: #0d6b6f;
+      --primary-2: #d7eceb;
+      --border: #ddd8cf;
+      --shadow: 0 10px 30px rgba(0,0,0,0.08);
+      --radius: 18px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #121212;
+        --card: #1b1b1b;
+        --text: #f3f3f1;
+        --muted: #a8a49c;
+        --primary: #66b7bc;
+        --primary-2: #1d3133;
+        --border: #303030;
+        --shadow: 0 10px 30px rgba(0,0,0,0.35);
+      }
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    .wrap {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 24px 16px 96px;
+    }
+
+    .hero {
+      padding: 20px 0 10px;
+    }
+
+    .logo {
+      width: 56px;
+      height: 56px;
+      border-radius: 16px;
+      background: var(--primary-2);
+      color: var(--primary);
+      display: grid;
+      place-items: center;
+      margin-bottom: 16px;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      font-weight: 700;
+      font-size: 20px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(2rem, 5vw, 3.4rem);
+      line-height: 1.05;
+    }
+
+    .sub {
+      margin: 0;
+      color: var(--muted);
+      max-width: 58ch;
+      font-size: 1rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+      margin-top: 28px;
+    }
+
+    @media (min-width: 800px) {
+      .grid {
+        grid-template-columns: 1.2fr 0.8fr;
+      }
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .card h2 {
+      margin: 0 0 10px;
+      font-size: 1.1rem;
+    }
+
+    .card p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .btn {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--text);
+      padding: 14px 18px;
+      border-radius: 999px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      box-shadow: var(--shadow);
+    }
+
+    .btn.primary {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+
+    .section-title {
+      margin: 30px 0 12px;
+      font-size: 1rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .pill-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .pill {
+      padding: 10px 14px;
+      background: var(--primary-2);
+      color: var(--primary);
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .footer-nav {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      padding: 12px;
+      background: rgba(255,255,255,0.85);
+      backdrop-filter: blur(10px);
+      border-top: 1px solid var(--border);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .footer-nav {
+        background: rgba(20,20,20,0.88);
+      }
+    }
+
+    .nav-item {
+      text-align: center;
+      text-decoration: none;
+      color: var(--muted);
+      font-size: 0.82rem;
+      padding: 10px 6px;
+      border-radius: 14px;
+      border: 1px solid transparent;
+    }
+
+    .nav-item.active {
+      color: var(--primary);
+      background: var(--primary-2);
+      border-color: var(--border);
+      font-weight: 700;
+    }
+
+    .small {
+      font-size: 0.92rem;
+      color: var(--muted);
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <div class="logo">DS</div>
+      <h1>Diario Sportivo di Igor</h1>
+      <p class="sub">
+        Prima base online della tua PWA personale. Da qui costruiremo registrazione attività,
+        statistiche, log, impostazioni, backup e sincronizzazione cloud.
+      </p>
+
+      <div class="actions">
+        <a href="#" class="btn primary">Registra la tua attività</a>
+        <a href="#" class="btn">Statistiche</a>
+      </div>
+    </section>
+
+    <div class="grid">
+      <article class="card">
+        <h2>Stato progetto</h2>
+        <p>
+          Il sito è online su GitHub Pages. Il prossimo passo sarà trasformare questa base
+          in una vera PWA installabile con salvataggio locale, log attività, statistiche e import storico.
+        </p>
+      </article>
+
+      <article class="card">
+        <h2>Attività previste</h2>
+        <p>
+          Palestra, corsa, camminata, trekking, bici e calcetto. La struttura sarà espandibile
+          con campi aggiuntivi e categorie personalizzabili.
+        </p>
+      </article>
+    </div>
+
+    <div class="section-title">Moduli previsti</div>
+    <div class="pill-list">
+      <div class="pill">Home</div>
+      <div class="pill">Registra attività</div>
+      <div class="pill">Statistiche</div>
+      <div class="pill">Log</div>
+      <div class="pill">Impostazioni</div>
+      <div class="pill">Backup</div>
+      <div class="pill">PDF</div>
+      <div class="pill">Sync cloud</div>
+    </div>
+
+    <p class="small">
+      Se vedi questa pagina online, significa che il repository e GitHub Pages stanno funzionando correttamente.
+    </p>
+  </main>
+
+  <nav class="footer-nav">
+    <a class="nav-item active" href="#">Home</a>
+    <a class="nav-item" href="#">Statistiche</a>
+    <a class="nav-item" href="#">Log</a>
+    <a class="nav-item" href="#">Impostazioni</a>
+  </nav>
+</body>
+</html>
