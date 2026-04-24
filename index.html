@@ -216,11 +216,11 @@
         Prima base online della tua PWA personale. Da qui costruiremo registrazione attività,
         statistiche, log, impostazioni, backup e sincronizzazione cloud.
       </p>
-
-      <div class="actions">
-        <a href="#" class="btn primary">Registra la tua attività</a>
-        <a href="#" class="btn">Statistiche</a>
-      </div>
+<div class="actions">
+  <a href="#" class="btn primary">Registra la tua attività</a>
+  <a href="#" class="btn">Statistiche</a>
+  <button id="installBtn" class="btn" style="display:none;">Installa app</button>
+</div>
     </section>
 
     <div class="grid">
@@ -252,7 +252,10 @@
       <div class="pill">PDF</div>
       <div class="pill">Sync cloud</div>
     </div>
-
+<div class="card" style="margin-top:20px;">
+  <h2>Diagnostica installazione</h2>
+  <p id="installStatus">Controllo requisiti PWA in corso...</p>
+</div>
     <p class="small">
       Se vedi questa pagina online, significa che il repository e GitHub Pages stanno funzionando correttamente.
     </p>
@@ -264,12 +267,57 @@
     <a class="nav-item" href="#">Log</a>
     <a class="nav-item" href="#">Impostazioni</a>
   </nav>
-      <script>
-    if ("serviceWorker" in navigator) {
-      window.addEventListener("load", () => {
-        navigator.serviceWorker.register("./service-worker.js");
-      });
+   <script>
+  let deferredPrompt = null;
+
+  const installBtn = document.getElementById("installBtn");
+  const installStatus = document.getElementById("installStatus");
+
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", async () => {
+      try {
+        await navigator.serviceWorker.register("./service-worker.js");
+        installStatus.textContent = "Service worker registrato correttamente.";
+      } catch (error) {
+        installStatus.textContent = "Errore nella registrazione del service worker.";
+      }
+    });
+  } else {
+    installStatus.textContent = "Questo browser non supporta i service worker.";
+  }
+
+  window.addEventListener("beforeinstallprompt", (event) => {
+    event.preventDefault();
+    deferredPrompt = event;
+    installBtn.style.display = "inline-flex";
+    installStatus.textContent = "Questa PWA è installabile. Premi 'Installa app'.";
+  });
+
+  installBtn.addEventListener("click", async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const choice = await deferredPrompt.userChoice;
+    if (choice.outcome === "accepted") {
+      installStatus.textContent = "Installazione accettata.";
+    } else {
+      installStatus.textContent = "Installazione annullata.";
     }
-  </script>
+    deferredPrompt = null;
+    installBtn.style.display = "none";
+  });
+
+  window.addEventListener("appinstalled", () => {
+    installStatus.textContent = "App installata correttamente sul dispositivo.";
+    installBtn.style.display = "none";
+  });
+
+  window.addEventListener("load", () => {
+    setTimeout(() => {
+      if (!deferredPrompt && installStatus.textContent === "Service worker registrato correttamente.") {
+        installStatus.textContent = "Il browser non ha ancora reso disponibile l'installazione. Controlla menu browser, tempo di permanenza sulla pagina o requisiti manifest.";
+      }
+    }, 4000);
+  });
+</script>
 </body>
 </html>
