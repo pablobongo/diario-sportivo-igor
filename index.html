@@ -1,323 +1,124 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-    <link rel="manifest" href="./manifest.webmanifest" />
-  <meta name="theme-color" content="#0d6b6f" />
-  <link rel="apple-touch-icon" href="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/192x192/1f4d8.png" />
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Diario Sportivo di Igor</title>
   <meta name="description" content="PWA personale per registrare attività sportive, statistiche e log." />
-  <style>
-    :root {
-      --bg: #f6f4ef;
-      --card: #ffffff;
-      --text: #1f1f1c;
-      --muted: #6f6c66;
-      --primary: #0d6b6f;
-      --primary-2: #d7eceb;
-      --border: #ddd8cf;
-      --shadow: 0 10px 30px rgba(0,0,0,0.08);
-      --radius: 18px;
-    }
+  <meta name="theme-color" content="#0d6b6f" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#080c12"  media="(prefers-color-scheme: dark)" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Diario Sportivo" />
 
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --bg: #121212;
-        --card: #1b1b1b;
-        --text: #f3f3f1;
-        --muted: #a8a49c;
-        --primary: #66b7bc;
-        --primary-2: #1d3133;
-        --border: #303030;
-        --shadow: 0 10px 30px rgba(0,0,0,0.35);
-      }
-    }
-
-    * { box-sizing: border-box; }
-
-    body {
-      margin: 0;
-      font-family: Inter, system-ui, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      line-height: 1.5;
-    }
-
-    .wrap {
-      max-width: 960px;
-      margin: 0 auto;
-      padding: 24px 16px 96px;
-    }
-
-    .hero {
-      padding: 20px 0 10px;
-    }
-
-    .logo {
-      width: 56px;
-      height: 56px;
-      border-radius: 16px;
-      background: var(--primary-2);
-      color: var(--primary);
-      display: grid;
-      place-items: center;
-      margin-bottom: 16px;
-      border: 1px solid var(--border);
-      box-shadow: var(--shadow);
-      font-weight: 700;
-      font-size: 20px;
-    }
-
-    h1 {
-      margin: 0 0 8px;
-      font-size: clamp(2rem, 5vw, 3.4rem);
-      line-height: 1.05;
-    }
-
-    .sub {
-      margin: 0;
-      color: var(--muted);
-      max-width: 58ch;
-      font-size: 1rem;
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 16px;
-      margin-top: 28px;
-    }
-
-    @media (min-width: 800px) {
-      .grid {
-        grid-template-columns: 1.2fr 0.8fr;
-      }
-    }
-
-    .card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 18px;
-      box-shadow: var(--shadow);
-    }
-
-    .card h2 {
-      margin: 0 0 10px;
-      font-size: 1.1rem;
-    }
-
-    .card p {
-      margin: 0;
-      color: var(--muted);
-    }
-
-    .actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      margin-top: 24px;
-    }
-
-    .btn {
-      appearance: none;
-      border: 1px solid var(--border);
-      background: var(--card);
-      color: var(--text);
-      padding: 14px 18px;
-      border-radius: 999px;
-      font-weight: 600;
-      cursor: pointer;
-      text-decoration: none;
-      box-shadow: var(--shadow);
-    }
-
-    .btn.primary {
-      background: var(--primary);
-      color: white;
-      border-color: var(--primary);
-    }
-
-    .section-title {
-      margin: 30px 0 12px;
-      font-size: 1rem;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-    }
-
-    .pill-list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-
-    .pill {
-      padding: 10px 14px;
-      background: var(--primary-2);
-      color: var(--primary);
-      border-radius: 999px;
-      border: 1px solid var(--border);
-      font-weight: 600;
-      font-size: 0.95rem;
-    }
-
-    .footer-nav {
-      position: fixed;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 8px;
-      padding: 12px;
-      background: rgba(255,255,255,0.85);
-      backdrop-filter: blur(10px);
-      border-top: 1px solid var(--border);
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .footer-nav {
-        background: rgba(20,20,20,0.88);
-      }
-    }
-
-    .nav-item {
-      text-align: center;
-      text-decoration: none;
-      color: var(--muted);
-      font-size: 0.82rem;
-      padding: 10px 6px;
-      border-radius: 14px;
-      border: 1px solid transparent;
-    }
-
-    .nav-item.active {
-      color: var(--primary);
-      background: var(--primary-2);
-      border-color: var(--border);
-      font-weight: 700;
-    }
-
-    .small {
-      font-size: 0.92rem;
-      color: var(--muted);
-      margin-top: 10px;
-    }
-  </style>
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+  <link rel="stylesheet" href="./assets/css/main.css" />
 </head>
 <body>
-  <main class="wrap">
-    <section class="hero">
-      <div class="logo">DS</div>
-      <h1>Diario Sportivo di Igor</h1>
-      <p class="sub">
-        Prima base online della tua PWA personale. Da qui costruiremo registrazione attività,
-        statistiche, log, impostazioni, backup e sincronizzazione cloud.
-      </p>
-<div class="actions">
-  <a href="#" class="btn primary">Registra la tua attività</a>
-  <a href="#" class="btn">Statistiche</a>
-  <button id="installBtn" class="btn" style="display:none;">Installa app</button>
-</div>
+
+<div class="app-shell">
+
+  <!-- HEADER -->
+  <header class="app-header">
+    <div class="header-logo">
+      <div class="header-logo-icon">DS</div>
+      <span id="header-title">Diario Sportivo</span>
+    </div>
+    <div class="header-right">
+      <span class="header-date" id="header-date"></span>
+    </div>
+  </header>
+
+  <!-- VIEWS -->
+  <main>
+
+    <!-- HOME -->
+    <section id="view-home" class="view active">
+      <div class="empty-state" style="padding-top:60px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        <p>Caricamento…</p>
+      </div>
     </section>
 
-    <div class="grid">
-      <article class="card">
-        <h2>Stato progetto</h2>
-        <p>
-          Il sito è online su GitHub Pages. Il prossimo passo sarà trasformare questa base
-          in una vera PWA installabile con salvataggio locale, log attività, statistiche e import storico.
-        </p>
-      </article>
+    <!-- REGISTRA -->
+    <section id="view-register" class="view">
+      <div class="empty-state" style="padding-top:60px">
+        <p>Caricamento…</p>
+      </div>
+    </section>
 
-      <article class="card">
-        <h2>Attività previste</h2>
-        <p>
-          Palestra, corsa, camminata, trekking, bici e calcetto. La struttura sarà espandibile
-          con campi aggiuntivi e categorie personalizzabili.
-        </p>
-      </article>
-    </div>
+    <!-- STATISTICHE -->
+    <section id="view-stats" class="view">
+      <div class="empty-state" style="padding-top:60px">
+        <p>Caricamento…</p>
+      </div>
+    </section>
 
-    <div class="section-title">Moduli previsti</div>
-    <div class="pill-list">
-      <div class="pill">Home</div>
-      <div class="pill">Registra attività</div>
-      <div class="pill">Statistiche</div>
-      <div class="pill">Log</div>
-      <div class="pill">Impostazioni</div>
-      <div class="pill">Backup</div>
-      <div class="pill">PDF</div>
-      <div class="pill">Sync cloud</div>
-    </div>
-<div class="card" style="margin-top:20px;">
-  <h2>Diagnostica installazione</h2>
-  <p id="installStatus">Controllo requisiti PWA in corso...</p>
-</div>
-    <p class="small">
-      Se vedi questa pagina online, significa che il repository e GitHub Pages stanno funzionando correttamente.
-    </p>
+    <!-- LOG -->
+    <section id="view-log" class="view">
+      <div class="empty-state" style="padding-top:60px">
+        <p>Caricamento…</p>
+      </div>
+    </section>
+
+    <!-- IMPOSTAZIONI -->
+    <section id="view-settings" class="view">
+      <div class="empty-state" style="padding-top:60px">
+        <p>Caricamento…</p>
+      </div>
+    </section>
+
   </main>
 
-  <nav class="footer-nav">
-    <a class="nav-item active" href="#">Home</a>
-    <a class="nav-item" href="#">Statistiche</a>
-    <a class="nav-item" href="#">Log</a>
-    <a class="nav-item" href="#">Impostazioni</a>
+  <!-- BOTTOM NAV -->
+  <nav class="bottom-nav">
+
+    <button class="nav-btn active" data-view="home">
+      <div class="nav-icon-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      </div>
+      <span>Home</span>
+    </button>
+
+    <button class="nav-btn" data-view="register">
+      <div class="nav-icon-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+      </div>
+      <span>Registra</span>
+    </button>
+
+    <button class="nav-btn" data-view="stats">
+      <div class="nav-icon-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      </div>
+      <span>Stats</span>
+    </button>
+
+    <button class="nav-btn" data-view="log">
+      <div class="nav-icon-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+      </div>
+      <span>Log</span>
+    </button>
+
+    <button class="nav-btn" data-view="settings">
+      <div class="nav-icon-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      </div>
+      <span>Impostazioni</span>
+    </button>
+
   </nav>
-   <script>
-  let deferredPrompt = null;
 
-  const installBtn = document.getElementById("installBtn");
-  const installStatus = document.getElementById("installStatus");
+</div>
 
-  if ("serviceWorker" in navigator) {
-    window.addEventListener("load", async () => {
-      try {
-        await navigator.serviceWorker.register("./service-worker.js");
-        installStatus.textContent = "Service worker registrato correttamente.";
-      } catch (error) {
-        installStatus.textContent = "Errore nella registrazione del service worker.";
-      }
-    });
-  } else {
-    installStatus.textContent = "Questo browser non supporta i service worker.";
-  }
+<!-- Toast -->
+<div class="toast" id="toast"></div>
 
-  window.addEventListener("beforeinstallprompt", (event) => {
-    event.preventDefault();
-    deferredPrompt = event;
-    installBtn.style.display = "inline-flex";
-    installStatus.textContent = "Questa PWA è installabile. Premi 'Installa app'.";
-  });
+<!-- App JS (ES modules) -->
+<script type="module" src="./assets/js/app.js"></script>
 
-  installBtn.addEventListener("click", async () => {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    const choice = await deferredPrompt.userChoice;
-    if (choice.outcome === "accepted") {
-      installStatus.textContent = "Installazione accettata.";
-    } else {
-      installStatus.textContent = "Installazione annullata.";
-    }
-    deferredPrompt = null;
-    installBtn.style.display = "none";
-  });
-
-  window.addEventListener("appinstalled", () => {
-    installStatus.textContent = "App installata correttamente sul dispositivo.";
-    installBtn.style.display = "none";
-  });
-
-  window.addEventListener("load", () => {
-    setTimeout(() => {
-      if (!deferredPrompt && installStatus.textContent === "Service worker registrato correttamente.") {
-        installStatus.textContent = "Il browser non ha ancora reso disponibile l'installazione. Controlla menu browser, tempo di permanenza sulla pagina o requisiti manifest.";
-      }
-    }, 4000);
-  });
-</script>
 </body>
 </html>
