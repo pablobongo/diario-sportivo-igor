@@ -108,6 +108,16 @@ export function activitySummary(a) {
   const parts = [];
   if (a.durationMinutes) parts.push(`${a.durationMinutes} min`);
   if (a.distanceKm)      parts.push(`${a.distanceKm} km`);
+  // Ritmo o velocità
+  if (a.distanceKm && a.durationMinutes) {
+    if (['corsa','camminata','trekking'].includes(a.activityType)) {
+      const pace = calcPace(a.durationMinutes, a.distanceKm);
+      if (pace) parts.push(pace);
+    } else if (a.activityType === 'bici') {
+      const speed = calcSpeed(a.durationMinutes, a.distanceKm);
+      if (speed) parts.push(speed);
+    }
+  }
   if (a.muscleGroups && a.muscleGroups.length)
     parts.push(a.muscleGroups.map(k => getMuscleGroup(k)?.label || k).join(', '));
   if (a.gymMode === 'cardio') parts.push('Cardio');
