@@ -1,6 +1,6 @@
 /* =============================================
-   stats.js — Statistiche v1.1
-   Aggiunto: filtro data personalizzato, record personali, heatmap annuale
+   stats.js — Statistiche v1.2
+   Aggiunto: filtro per sport, ritmo min/km, statistiche ritmo
    ============================================= */
 
 import { getActivitiesByDateRange, getAllActivities } from './db.js';
@@ -10,6 +10,12 @@ import { lastNDays } from './utils.js';
 let currentPeriod = '30';
 let customFrom    = '';
 let customTo      = '';
+let currentSport  = 'all';
+
+// Sport che hanno ritmo/velocità
+const PACE_SPORTS  = ['corsa', 'trekking', 'camminata'];
+const SPEED_SPORTS = ['bici'];
+const KM_SPORTS    = ['corsa', 'bici', 'camminata', 'trekking'];
 
 export async function renderStats() {
   const el = document.getElementById('view-stats');
@@ -45,6 +51,14 @@ export async function renderStats() {
       <button class="btn btn-primary btn-full mb-16" onclick="applyCustomRange()">Applica filtro</button>
     </div>
 
+    <div class="card-title mb-8" style="margin-top:4px">Filtra per sport</div>
+    <div class="filter-row mb-16" id="stats-sport-filters">
+      <div class="filter-chip ${currentSport==='all'?'active':''}" onclick="statsSport('all',this)">Tutti</div>
+      ${ACTIVITIES.map(a => `
+        <div class="filter-chip ${currentSport===a.key?'active':''}" onclick="statsSport('${a.key}',this)">${a.label}</div>
+      `).join('')}
+    </div>
+
     <div id="stats-content"></div>
   `;
 
@@ -69,17 +83,22 @@ async function loadStatsContent() {
     activities = await getActivitiesByDateRange(from, to);
   }
 
+  // Filtro sport
+  if (currentSport !== 'all') {
+    activities = activities.filter(a => a.activityType === currentSport);
+  }
+
   if (!activities.length) {
     container.innerHTML = `<div class="empty-state"><p>Nessuna attività nel periodo selezionato.</p></div>`;
     return;
   }
 
   // KPI base
-  const totalMin  = activities.reduce((s, a) => s + (a.durationMinutes || 0), 0);
-  const totalKm   = activities.reduce((s, a) => s + (a.distanceKm || 0), 0);
-  const gymSess   = activities.filter(a => a.activityType === 'palestra').length;
+  const totalMin = activities.reduce((s, a) => s + (a.durationMinutes || 0), 0);
+  const totalKm  = activities.reduce((s, a) => s + (a.distanceKm || 0), 0);
+  const gymSess  = activities.filter(a => a.activityType === 'palestra').length;
 
-  // Sport più frequente
+  // Sport più frequente (solo se filtro = tutti)
   const sportCount = {};
   activities.forEach(a => { sportCount[a.activityType] = (sportCount[a.activityType] || 0) + 1; });
   const topSport      = Object.entries(sportCount).sort((a,b) => b[1]-a[1])[0];
@@ -102,14 +121,10 @@ async function loadStatsContent() {
     (a.muscleGroups || []).forEach(m => { muscleCount[m] = (muscleCount[m] || 0) + 1; });
   });
 
-  // Record personali
-  const records = buildRecords(activities);
-
-  // Dati settimanali
-  const maxWeeks  = currentPeriod === 'all' ? 156 : Math.min(Math.ceil(Number(currentPeriod)/7) + 2, 156);
-  const weeklyData = buildWeeklyData(activities, maxWeeks);
-
-  // Anno per heatmap
+  // Statistiche ritmo
+  const paceStats  = buildPaceStats(activities);
+  const records    = buildRecords(activities);
+  const weeklyData = buildWeeklyData(activities, currentPeriod === 'all' ? 156 : Math.min(Math.ceil(Number(currentPeriod)/7) + 2, 156));
   const heatmapYear = new Date().getFullYear();
 
   container.innerHTML = `
@@ -127,11 +142,12 @@ async function loadStatsContent() {
         <div class="kpi-label">Km totali</div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-value">${gymSess}</div>
-        <div class="kpi-label">Sessioni palestra</div>
+        <div class="kpi-value">${gymSess > 0 ? gymSess : activities.length}</div>
+        <div class="kpi-label">${gymSess > 0 ? 'Sessioni palestra' : 'Sessioni'}</div>
       </div>
     </div>
 
+    ${currentSport === 'all' ? `
     <div class="card mt-16">
       <div class="card-title">Sport più praticato</div>
       <div style="font-size:1.05rem;font-weight:700;font-family:var(--font-display)">
@@ -141,12 +157,18 @@ async function loadStatsContent() {
       <div class="mt-8" style="color:var(--muted);font-size:0.85rem">
         Giorno più attivo: <strong style="color:var(--text)">${dowLabels[topDow]}</strong>
       </div>
-    </div>
+    </div>` : ''}
+
+    ${paceStats ? `
+    <div class="card mt-16">
+      <div class="card-title">⚡ Ritmo e velocità</div>
+      ${paceStats}
+    </div>` : ''}
 
     ${records ? `
     <div class="card mt-16">
       <div class="card-title">🏆 Record personali</div>
-      <div id="records-content">${records}</div>
+      ${records}
     </div>` : ''}
 
     <div class="card mt-16">
@@ -161,18 +183,27 @@ async function loadStatsContent() {
       </div>
     </div>
 
+    ${currentSport === 'all' ? `
     <div class="card mt-16">
       <div class="card-title">Distribuzione sport</div>
       <div class="chart-wrap" style="height:220px">
         <canvas id="chart-sport"></canvas>
       </div>
-    </div>
+    </div>` : ''}
 
     ${gymSess > 0 ? `
     <div class="card mt-16">
       <div class="card-title">Frequenza gruppi muscolari</div>
       <div class="chart-wrap" style="height:${Math.max(160, MUSCLE_GROUPS.filter(m=>m.minPerWeek>0).length * 28)}px">
         <canvas id="chart-muscles"></canvas>
+      </div>
+    </div>` : ''}
+
+    ${KM_SPORTS.includes(currentSport) && activities.some(a => a.distanceKm && a.durationMinutes) ? `
+    <div class="card mt-16">
+      <div class="card-title">Andamento ritmo nel tempo</div>
+      <div class="chart-wrap">
+        <canvas id="chart-pace"></canvas>
       </div>
     </div>` : ''}
 
@@ -184,10 +215,7 @@ async function loadStatsContent() {
     </div>
   `;
 
-  // Heatmap
   renderHeatmap(activities, heatmapYear);
-
-  // Grafici
   await loadChartJS();
 
   const isDark    = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -203,24 +231,23 @@ async function loadStatsContent() {
   if (wCtx && weeklyData.labels.length) {
     new Chart(wCtx, {
       type: 'bar',
-      data: {
-        labels: weeklyData.labels,
-        datasets: [{ label: 'Attività', data: weeklyData.counts, backgroundColor: primary+'66', borderColor: primary, borderWidth: 1.5, borderRadius: 6 }]
-      },
+      data: { labels: weeklyData.labels, datasets:[{ label:'Attività', data: weeklyData.counts, backgroundColor: primary+'66', borderColor: primary, borderWidth:1.5, borderRadius:6 }] },
       options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{grid:{color:gridColor}}, y:{grid:{color:gridColor},beginAtZero:true,ticks:{precision:0}} } }
     });
   }
 
   // Distribuzione sport
-  const sCtx = document.getElementById('chart-sport')?.getContext('2d');
-  if (sCtx) {
-    const sportEntries = Object.entries(sportCount).sort((a,b) => b[1]-a[1]);
-    const actColors    = sportEntries.map(([k]) => ACTIVITIES.find(a => a.key===k)?.color || '#888');
-    new Chart(sCtx, {
-      type: 'doughnut',
-      data: { labels: sportEntries.map(([k]) => ACTIVITIES.find(a=>a.key===k)?.label||k), datasets:[{ data: sportEntries.map(([,v])=>v), backgroundColor: actColors, borderWidth:0 }] },
-      options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'right'}} }
-    });
+  if (currentSport === 'all') {
+    const sCtx = document.getElementById('chart-sport')?.getContext('2d');
+    if (sCtx) {
+      const sportEntries = Object.entries(sportCount).sort((a,b) => b[1]-a[1]);
+      const actColors    = sportEntries.map(([k]) => ACTIVITIES.find(a => a.key===k)?.color || '#888');
+      new Chart(sCtx, {
+        type: 'doughnut',
+        data: { labels: sportEntries.map(([k]) => ACTIVITIES.find(a=>a.key===k)?.label||k), datasets:[{ data: sportEntries.map(([,v])=>v), backgroundColor: actColors, borderWidth:0 }] },
+        options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'right'}} }
+      });
+    }
   }
 
   // Muscoli
@@ -238,6 +265,48 @@ async function loadStatsContent() {
     }
   }
 
+  // Grafico ritmo nel tempo
+  const pCtx = document.getElementById('chart-pace')?.getContext('2d');
+  if (pCtx && KM_SPORTS.includes(currentSport)) {
+    const paceData = activities
+      .filter(a => a.distanceKm && a.durationMinutes && a.distanceKm > 0)
+      .sort((a,b) => a.date.localeCompare(b.date))
+      .map(a => ({
+        x: formatDate(a.date),
+        y: SPEED_SPORTS.includes(a.activityType)
+          ? parseFloat(((a.distanceKm / a.durationMinutes) * 60).toFixed(1))
+          : parseFloat((a.durationMinutes / a.distanceKm).toFixed(2)),
+      }));
+
+    const isSpeed = SPEED_SPORTS.includes(currentSport);
+    new Chart(pCtx, {
+      type: 'line',
+      data: {
+        labels: paceData.map(p => p.x),
+        datasets:[{
+          label: isSpeed ? 'Velocità media (km/h)' : 'Ritmo medio (min/km)',
+          data: paceData.map(p => p.y),
+          borderColor: primary,
+          backgroundColor: primary+'22',
+          borderWidth: 2,
+          pointRadius: 3,
+          fill: true,
+          tension: 0.3,
+        }]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ display:true, position:'top' } },
+        scales:{
+          x:{ grid:{color:gridColor}, ticks:{maxTicksLimit:8} },
+          y:{ grid:{color:gridColor}, beginAtZero:false,
+              title:{ display:true, text: isSpeed ? 'km/h' : 'min/km' }
+          }
+        }
+      }
+    });
+  }
+
   // Giorni settimana
   const dCtx = document.getElementById('chart-dow')?.getContext('2d');
   if (dCtx) {
@@ -249,147 +318,129 @@ async function loadStatsContent() {
   }
 }
 
-/* ---- HEATMAP ---- */
-function renderHeatmap(activities, year) {
-  const wrap = document.getElementById('heatmap-wrap');
-  if (!wrap) return;
+/* ---- PACE STATS ---- */
+function buildPaceStats(activities) {
+  const rows = [];
 
-  const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-  // Conta attività per giorno
-  const dayCount = {};
-  activities.forEach(a => {
-    if (a.date && a.date.startsWith(String(year))) {
-      dayCount[a.date] = (dayCount[a.date] || 0) + 1;
-    }
-  });
-
-  const maxVal = Math.max(1, ...Object.values(dayCount));
-
-  // Genera griglia: 53 settimane x 7 giorni
-  const jan1   = new Date(year, 0, 1);
-  const startDow = jan1.getDay(); // 0=dom
-
-  const months = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
-  const days   = ['D','L','M','M','G','V','S'];
-
-  let cells = '';
-  let monthLabels = '<div style="display:flex;gap:3px;margin-left:22px;margin-bottom:4px;font-size:0.65rem;color:var(--muted)">';
-  let lastMonth = -1;
-  let colCount  = 0;
-
-  // Celle vuote iniziali
-  const emptyCells = startDow;
-  const totalCells = emptyCells + 365 + (new Date(year, 11, 31).getDay() === 6 ? 0 : 6 - new Date(year, 11, 31).getDay());
-
-  let col = 0;
-  let cellsInCol = 0;
-
-  cells += '<div style="display:flex;gap:3px">';
-  // Etichette giorni
-  cells += `<div style="display:flex;flex-direction:column;gap:3px;margin-right:4px">
-    ${days.map((d,i) => `<div style="height:11px;width:11px;font-size:0.55rem;color:var(--muted);line-height:11px;text-align:center">${i%2===1?d:''}</div>`).join('')}
-  </div>`;
-
-  const allDays = [];
-  for (let i = 0; i < 371; i++) {
-    const d = new Date(year, 0, 1 - startDow + i);
-    allDays.push(d);
+  // Corsa
+  const corse = activities.filter(a => a.activityType === 'corsa' && a.distanceKm && a.durationMinutes);
+  if (corse.length) {
+    const totalKm  = corse.reduce((s,a) => s + a.distanceKm, 0);
+    const totalMin = corse.reduce((s,a) => s + a.durationMinutes, 0);
+    const avgPace  = formatPace(totalMin / totalKm);
+    const bestRun  = corse.reduce((best, a) => (a.durationMinutes/a.distanceKm) < (best.durationMinutes/best.distanceKm) ? a : best);
+    const bestPace = formatPace(bestRun.durationMinutes / bestRun.distanceKm);
+    rows.push(`
+      <div style="border-bottom:1px solid var(--border);padding:10px 0">
+        <div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--primary);font-family:var(--font-display);margin-bottom:8px">🏃 Corsa</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+          <div><div style="font-size:1.1rem;font-weight:700;font-family:var(--font-display)">${avgPace}</div><div style="font-size:0.72rem;color:var(--muted)">Ritmo medio</div></div>
+          <div><div style="font-size:1.1rem;font-weight:700;font-family:var(--font-display)">${bestPace}</div><div style="font-size:0.72rem;color:var(--muted)">Ritmo migliore</div></div>
+          <div><div style="font-size:1.1rem;font-weight:700;font-family:var(--font-display)">${totalKm.toFixed(1)} km</div><div style="font-size:0.72rem;color:var(--muted)">Km totali</div></div>
+        </div>
+      </div>
+    `);
   }
 
-  // Raggruppa per settimana
-  const weeks = [];
-  for (let w = 0; w < 53; w++) {
-    weeks.push(allDays.slice(w*7, w*7+7));
+  // Bici
+  const bici = activities.filter(a => a.activityType === 'bici' && a.distanceKm && a.durationMinutes);
+  if (bici.length) {
+    const totalKm  = bici.reduce((s,a) => s + a.distanceKm, 0);
+    const totalMin = bici.reduce((s,a) => s + a.durationMinutes, 0);
+    const avgSpeed = ((totalKm / totalMin) * 60).toFixed(1);
+    const bestRide = bici.reduce((best, a) => (a.distanceKm/a.durationMinutes) > (best.distanceKm/best.durationMinutes) ? a : best);
+    const bestSpeed = ((bestRide.distanceKm / bestRide.durationMinutes) * 60).toFixed(1);
+    rows.push(`
+      <div style="border-bottom:1px solid var(--border);padding:10px 0">
+        <div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--primary);font-family:var(--font-display);margin-bottom:8px">🚴 Bici</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+          <div><div style="font-size:1.1rem;font-weight:700;font-family:var(--font-display)">${avgSpeed} km/h</div><div style="font-size:0.72rem;color:var(--muted)">Velocità media</div></div>
+          <div><div style="font-size:1.1rem;font-weight:700;font-family:var(--font-display)">${bestSpeed} km/h</div><div style="font-size:0.72rem;color:var(--muted)">Velocità massima</div></div>
+          <div><div style="font-size:1.1rem;font-weight:700;font-family:var(--font-display)">${totalKm.toFixed(1)} km</div><div style="font-size:0.72rem;color:var(--muted)">Km totali</div></div>
+        </div>
+      </div>
+    `);
   }
 
-  weeks.forEach((week, wi) => {
-    // Etichetta mese
-    const firstDay = week.find(d => d.getFullYear() === year);
-    if (firstDay && firstDay.getDate() <= 7 && firstDay.getMonth() !== lastMonth) {
-      lastMonth = firstDay.getMonth();
-    }
+  // Camminata
+  const camm = activities.filter(a => a.activityType === 'camminata' && a.distanceKm && a.durationMinutes);
+  if (camm.length) {
+    const totalKm  = camm.reduce((s,a) => s + a.distanceKm, 0);
+    const totalMin = camm.reduce((s,a) => s + a.durationMinutes, 0);
+    const avgPace  = formatPace(totalMin / totalKm);
+    rows.push(`
+      <div style="border-bottom:1px solid var(--border);padding:10px 0">
+        <div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--primary);font-family:var(--font-display);margin-bottom:8px">🚶 Camminata</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+          <div><div style="font-size:1.1rem;font-weight:700;font-family:var(--font-display)">${avgPace}</div><div style="font-size:0.72rem;color:var(--muted)">Ritmo medio</div></div>
+          <div><div style="font-size:1.1rem;font-weight:700;font-family:var(--font-display)">${camm.length}</div><div style="font-size:0.72rem;color:var(--muted)">Uscite</div></div>
+          <div><div style="font-size:1.1rem;font-weight:700;font-family:var(--font-display)">${totalKm.toFixed(1)} km</div><div style="font-size:0.72rem;color:var(--muted)">Km totali</div></div>
+        </div>
+      </div>
+    `);
+  }
 
-    cells += `<div style="display:flex;flex-direction:column;gap:3px">`;
-    week.forEach(d => {
-      if (d.getFullYear() !== year) {
-        cells += `<div style="width:11px;height:11px;border-radius:2px;background:transparent"></div>`;
-        return;
-      }
-      const dateStr = d.toISOString().slice(0, 10);
-      const count   = dayCount[dateStr] || 0;
-      const intensity = count === 0 ? 0 : Math.ceil((count / maxVal) * 4);
-      const colors = isDark
-        ? ['#1a2230', '#0d3d40', '#0a5a60', '#087a82', '#00d4e0']
-        : ['#e8f5f5', '#b3e0e2', '#66bfc3', '#339fa5', '#0d6b6f'];
-      const bg    = colors[intensity];
-      const title = count > 0
-        ? `${d.toLocaleDateString('it-IT',{day:'numeric',month:'short'})}: ${count} attività`
-        : d.toLocaleDateString('it-IT',{day:'numeric',month:'short'});
-      cells += `<div title="${title}" style="width:11px;height:11px;border-radius:2px;background:${bg};cursor:${count>0?'pointer':'default'}" ></div>`;
-    });
-    cells += `</div>`;
-  });
+  // Trekking
+  const trek = activities.filter(a => a.activityType === 'trekking' && a.distanceKm && a.durationMinutes);
+  if (trek.length) {
+    const totalKm  = trek.reduce((s,a) => s + a.distanceKm, 0);
+    const totalMin = trek.reduce((s,a) => s + a.durationMinutes, 0);
+    const avgPace  = formatPace(totalMin / totalKm);
+    rows.push(`
+      <div style="padding:10px 0">
+        <div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--primary);font-family:var(--font-display);margin-bottom:8px">🥾 Trekking</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+          <div><div style="font-size:1.1rem;font-weight:700;font-family:var(--font-display)">${avgPace}</div><div style="font-size:0.72rem;color:var(--muted)">Ritmo medio</div></div>
+          <div><div style="font-size:1.1rem;font-weight:700;font-family:var(--font-display)">${trek.length}</div><div style="font-size:0.72rem;color:var(--muted)">Uscite</div></div>
+          <div><div style="font-size:1.1rem;font-weight:700;font-family:var(--font-display)">${totalKm.toFixed(1)} km</div><div style="font-size:0.72rem;color:var(--muted)">Km totali</div></div>
+        </div>
+      </div>
+    `);
+  }
 
-  cells += '</div>';
+  return rows.length ? rows.join('') : null;
+}
 
-  // Etichette mesi sopra
-  let monthRow = '<div style="display:flex;gap:3px;margin-left:26px;margin-bottom:4px;font-size:0.65rem;color:var(--muted);overflow:hidden">';
-  let lastM = -1;
-  weeks.forEach((week, wi) => {
-    const firstYearDay = week.find(d => d.getFullYear() === year);
-    if (firstYearDay) {
-      const m = firstYearDay.getMonth();
-      if (m !== lastM && firstYearDay.getDate() <= 7) {
-        lastM = m;
-        monthRow += `<div style="min-width:${wi>0?'calc(4*14px)':'auto'};font-size:0.62rem">${months[m]}</div>`;
-      } else {
-        monthRow += `<div style="min-width:14px"></div>`;
-      }
-    } else {
-      monthRow += `<div style="min-width:14px"></div>`;
-    }
-  });
-  monthRow += '</div>';
-
-  // Legenda
-  const isDarkNow = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  const legendColors = isDarkNow
-    ? ['#1a2230', '#0d3d40', '#0a5a60', '#087a82', '#00d4e0']
-    : ['#e8f5f5', '#b3e0e2', '#66bfc3', '#339fa5', '#0d6b6f'];
-  const legend = `
-    <div style="display:flex;align-items:center;gap:6px;margin-top:10px;font-size:0.7rem;color:var(--muted)">
-      <span>Meno</span>
-      ${legendColors.map(c => `<div style="width:11px;height:11px;border-radius:2px;background:${c}"></div>`).join('')}
-      <span>Di più</span>
-    </div>
-  `;
-
-  wrap.innerHTML = monthRow + cells + legend;
+function formatPace(minPerKm) {
+  if (!minPerKm || !isFinite(minPerKm)) return '—';
+  const m = Math.floor(minPerKm);
+  const s = Math.round((minPerKm - m) * 60);
+  return `${m}:${s.toString().padStart(2,'0')} min/km`;
 }
 
 /* ---- RECORD PERSONALI ---- */
 function buildRecords(activities) {
   const records = [];
 
-  // Sessione più lunga
-  const maxMin = activities.reduce((m, a) => a.durationMinutes > (m?.durationMinutes||0) ? a : m, null);
+  const maxMin = activities.reduce((m, a) => (a.durationMinutes||0) > (m?.durationMinutes||0) ? a : m, null);
   if (maxMin?.durationMinutes) {
-    records.push({ icon: '⏱️', label: 'Sessione più lunga', value: `${maxMin.durationMinutes} min`, sub: `${formatDate(maxMin.date)} · ${ACTIVITIES.find(a=>a.key===maxMin.activityType)?.label||maxMin.activityType}` });
+    records.push({ icon:'⏱️', label:'Sessione più lunga', value:`${maxMin.durationMinutes} min`, sub:`${formatDate(maxMin.date)} · ${ACTIVITIES.find(a=>a.key===maxMin.activityType)?.label||maxMin.activityType}` });
   }
 
-  // Km più lungo
   const maxKm = activities.reduce((m, a) => (a.distanceKm||0) > (m?.distanceKm||0) ? a : m, null);
   if (maxKm?.distanceKm) {
-    records.push({ icon: '📍', label: 'Percorso più lungo', value: `${maxKm.distanceKm} km`, sub: `${formatDate(maxKm.date)} · ${ACTIVITIES.find(a=>a.key===maxKm.activityType)?.label||maxKm.activityType}` });
+    records.push({ icon:'📍', label:'Percorso più lungo', value:`${maxKm.distanceKm} km`, sub:`${formatDate(maxKm.date)} · ${ACTIVITIES.find(a=>a.key===maxKm.activityType)?.label||maxKm.activityType}` });
   }
 
-  // Settimana più intensa (più attività)
+  // Ritmo migliore corsa
+  const corse = activities.filter(a => a.activityType==='corsa' && a.distanceKm && a.durationMinutes);
+  if (corse.length) {
+    const best = corse.reduce((b,a) => (a.durationMinutes/a.distanceKm) < (b.durationMinutes/b.distanceKm) ? a : b);
+    records.push({ icon:'🏃', label:'Ritmo migliore corsa', value:formatPace(best.durationMinutes/best.distanceKm), sub:`${formatDate(best.date)} · ${best.distanceKm} km` });
+  }
+
+  // Velocità massima bici
+  const bici = activities.filter(a => a.activityType==='bici' && a.distanceKm && a.durationMinutes);
+  if (bici.length) {
+    const best = bici.reduce((b,a) => (a.distanceKm/a.durationMinutes) > (b.distanceKm/b.durationMinutes) ? a : b);
+    records.push({ icon:'🚴', label:'Velocità massima bici', value:`${((best.distanceKm/best.durationMinutes)*60).toFixed(1)} km/h`, sub:`${formatDate(best.date)} · ${best.distanceKm} km` });
+  }
+
   const weekCount = {};
   activities.forEach(a => {
     if (!a.date) return;
     const [y,m,d] = a.date.split('-').map(Number);
-    const dt  = new Date(y,m-1,d);
+    const dt = new Date(y,m-1,d);
     const dow = (dt.getDay()+6)%7;
     const mon = new Date(dt); mon.setDate(dt.getDate()-dow);
     const key = mon.toISOString().slice(0,10);
@@ -398,96 +449,110 @@ function buildRecords(activities) {
   const topWeek = Object.entries(weekCount).sort((a,b)=>b[1]-a[1])[0];
   if (topWeek) {
     const [y,m,d] = topWeek[0].split('-').map(Number);
-    const weekLabel = new Date(y,m-1,d).toLocaleDateString('it-IT',{day:'numeric',month:'short',year:'numeric'});
-    records.push({ icon: '🔥', label: 'Settimana più intensa', value: `${topWeek[1]} attività`, sub: `Settimana del ${weekLabel}` });
+    records.push({ icon:'🔥', label:'Settimana più intensa', value:`${topWeek[1]} attività`, sub:`Settimana del ${new Date(y,m-1,d).toLocaleDateString('it-IT',{day:'numeric',month:'short',year:'numeric'})}` });
   }
 
-  // Mese record
   const monthCount = {};
-  activities.forEach(a => {
-    if (!a.date) return;
-    const key = a.date.slice(0,7);
-    monthCount[key] = (monthCount[key]||0)+1;
-  });
+  activities.forEach(a => { if (a.date) { const k=a.date.slice(0,7); monthCount[k]=(monthCount[k]||0)+1; } });
   const topMonth = Object.entries(monthCount).sort((a,b)=>b[1]-a[1])[0];
   if (topMonth) {
     const [y,m] = topMonth[0].split('-').map(Number);
-    const mLabel = new Date(y,m-1,1).toLocaleDateString('it-IT',{month:'long',year:'numeric'});
-    records.push({ icon: '📅', label: 'Mese record', value: `${topMonth[1]} attività`, sub: mLabel });
+    records.push({ icon:'📅', label:'Mese record', value:`${topMonth[1]} attività`, sub:new Date(y,m-1,1).toLocaleDateString('it-IT',{month:'long',year:'numeric'}) });
   }
 
-  // Streak più lunga (giorni consecutivi con almeno 1 attività)
   const dates = [...new Set(activities.map(a=>a.date).filter(Boolean))].sort();
-  let maxStreak = 0, curStreak = 1;
-  for (let i = 1; i < dates.length; i++) {
-    const prev = new Date(dates[i-1]);
-    const curr = new Date(dates[i]);
-    const diff = (curr - prev) / 86400000;
-    if (diff === 1) {
-      curStreak++;
-      maxStreak = Math.max(maxStreak, curStreak);
-    } else {
-      curStreak = 1;
-    }
+  let maxStreak=0, curStreak=1;
+  for (let i=1;i<dates.length;i++) {
+    const diff = (new Date(dates[i]) - new Date(dates[i-1])) / 86400000;
+    if (diff===1) { curStreak++; maxStreak=Math.max(maxStreak,curStreak); } else { curStreak=1; }
   }
-  if (maxStreak > 1) {
-    records.push({ icon: '⚡', label: 'Streak più lunga', value: `${maxStreak} giorni consecutivi`, sub: '' });
-  }
-
-  // Totale km corsa
-  const totalRunKm = activities.filter(a=>a.activityType==='corsa').reduce((s,a)=>s+(a.distanceKm||0),0);
-  if (totalRunKm > 0) {
-    records.push({ icon: '🏃', label: 'Km totali corsa', value: `${totalRunKm.toFixed(1)} km`, sub: `${activities.filter(a=>a.activityType==='corsa').length} uscite` });
-  }
-
-  // Totale km bici
-  const totalBikeKm = activities.filter(a=>a.activityType==='bici').reduce((s,a)=>s+(a.distanceKm||0),0);
-  if (totalBikeKm > 0) {
-    records.push({ icon: '🚴', label: 'Km totali bici', value: `${totalBikeKm.toFixed(1)} km`, sub: `${activities.filter(a=>a.activityType==='bici').length} uscite` });
-  }
+  if (maxStreak>1) records.push({ icon:'⚡', label:'Streak più lunga', value:`${maxStreak} giorni consecutivi`, sub:'' });
 
   if (!records.length) return null;
-
   return records.map(r => `
     <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
       <div style="font-size:1.4rem;width:32px;text-align:center;flex-shrink:0">${r.icon}</div>
       <div style="flex:1">
         <div style="font-size:0.78rem;color:var(--muted);font-family:var(--font-display);text-transform:uppercase;letter-spacing:0.05em">${r.label}</div>
         <div style="font-weight:700;font-family:var(--font-display);font-size:1rem">${r.value}</div>
-        ${r.sub ? `<div style="font-size:0.75rem;color:var(--muted)">${r.sub}</div>` : ''}
+        ${r.sub?`<div style="font-size:0.75rem;color:var(--muted)">${r.sub}</div>`:''}
       </div>
     </div>
   `).join('');
 }
 
-/* ---- WEEKLY DATA ---- */
-function buildWeeklyData(activities, maxWeeks = 12) {
-  const weeks = {};
-  activities.forEach(a => {
-    if (!a.date) return;
-    const [y,m,d] = a.date.split('-').map(Number);
-    const dt  = new Date(y,m-1,d);
-    const dow = (dt.getDay()+6)%7;
-    const mon = new Date(dt); mon.setDate(dt.getDate()-dow);
-    const key = mon.toISOString().slice(0,10);
-    weeks[key] = (weeks[key]||0)+1;
+/* ---- HEATMAP ---- */
+function renderHeatmap(activities, year) {
+  const wrap = document.getElementById('heatmap-wrap');
+  if (!wrap) return;
+  const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const dayCount = {};
+  activities.forEach(a => { if (a.date?.startsWith(String(year))) dayCount[a.date]=(dayCount[a.date]||0)+1; });
+  const maxVal = Math.max(1, ...Object.values(dayCount));
+  const months  = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+  const days    = ['D','L','M','M','G','V','S'];
+  const jan1    = new Date(year,0,1);
+  const startDow = jan1.getDay();
+  const allDays = [];
+  for (let i=0;i<371;i++) allDays.push(new Date(year,0,1-startDow+i));
+  const weeks = [];
+  for (let w=0;w<53;w++) weeks.push(allDays.slice(w*7,w*7+7));
+  let cells = '<div style="display:flex;gap:3px">';
+  cells += `<div style="display:flex;flex-direction:column;gap:3px;margin-right:4px">${days.map((d,i)=>`<div style="height:11px;width:11px;font-size:0.55rem;color:var(--muted);line-height:11px;text-align:center">${i%2===1?d:''}</div>`).join('')}</div>`;
+  weeks.forEach(week => {
+    cells += `<div style="display:flex;flex-direction:column;gap:3px">`;
+    week.forEach(d => {
+      if (d.getFullYear()!==year) { cells+=`<div style="width:11px;height:11px;border-radius:2px;background:transparent"></div>`; return; }
+      const dateStr = d.toISOString().slice(0,10);
+      const count   = dayCount[dateStr]||0;
+      const intensity = count===0?0:Math.ceil((count/maxVal)*4);
+      const colors = isDark?['#1a2230','#0d3d40','#0a5a60','#087a82','#00d4e0']:['#e8f5f5','#b3e0e2','#66bfc3','#339fa5','#0d6b6f'];
+      const title = count>0?`${d.toLocaleDateString('it-IT',{day:'numeric',month:'short'})}: ${count} attività`:d.toLocaleDateString('it-IT',{day:'numeric',month:'short'});
+      cells+=`<div title="${title}" style="width:11px;height:11px;border-radius:2px;background:${colors[intensity]}"></div>`;
+    });
+    cells+=`</div>`;
   });
-  const sorted = Object.entries(weeks).sort((a,b)=>a[0].localeCompare(b[0])).slice(-maxWeeks);
+  cells+='</div>';
+  let lastM=-1;
+  let monthRow='<div style="display:flex;gap:3px;margin-left:26px;margin-bottom:4px;font-size:0.65rem;color:var(--muted);overflow:hidden">';
+  weeks.forEach(week => {
+    const first = week.find(d=>d.getFullYear()===year);
+    if (first&&first.getDate()<=7&&first.getMonth()!==lastM) { lastM=first.getMonth(); monthRow+=`<div style="min-width:calc(4*14px);font-size:0.62rem">${months[lastM]}</div>`; }
+    else monthRow+=`<div style="min-width:14px"></div>`;
+  });
+  monthRow+='</div>';
+  const legendColors = isDark?['#1a2230','#0d3d40','#0a5a60','#087a82','#00d4e0']:['#e8f5f5','#b3e0e2','#66bfc3','#339fa5','#0d6b6f'];
+  const legend=`<div style="display:flex;align-items:center;gap:6px;margin-top:10px;font-size:0.7rem;color:var(--muted)"><span>Meno</span>${legendColors.map(c=>`<div style="width:11px;height:11px;border-radius:2px;background:${c}"></div>`).join('')}<span>Di più</span></div>`;
+  wrap.innerHTML = monthRow+cells+legend;
+}
+
+/* ---- WEEKLY DATA ---- */
+function buildWeeklyData(activities, maxWeeks=12) {
+  const weeks={};
+  activities.forEach(a=>{
+    if (!a.date) return;
+    const [y,m,d]=a.date.split('-').map(Number);
+    const dt=new Date(y,m-1,d);
+    const dow=(dt.getDay()+6)%7;
+    const mon=new Date(dt); mon.setDate(dt.getDate()-dow);
+    const key=mon.toISOString().slice(0,10);
+    weeks[key]=(weeks[key]||0)+1;
+  });
+  const sorted=Object.entries(weeks).sort((a,b)=>a[0].localeCompare(b[0])).slice(-maxWeeks);
   return {
-    labels: sorted.map(([k]) => { const [y,m,d]=k.split('-').map(Number); return new Date(y,m-1,d).toLocaleDateString('it-IT',{day:'numeric',month:'short'}); }),
+    labels: sorted.map(([k])=>{const [y,m,d]=k.split('-').map(Number);return new Date(y,m-1,d).toLocaleDateString('it-IT',{day:'numeric',month:'short'});}),
     counts: sorted.map(([,v])=>v),
   };
 }
 
 /* ---- CHART.JS ---- */
-let chartJSLoaded = false;
+let chartJSLoaded=false;
 function loadChartJS() {
   if (chartJSLoaded) return Promise.resolve();
-  return new Promise((resolve, reject) => {
-    const s = document.createElement('script');
-    s.src     = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js';
-    s.onload  = () => { chartJSLoaded = true; resolve(); };
-    s.onerror = reject;
+  return new Promise((resolve,reject)=>{
+    const s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js';
+    s.onload=()=>{chartJSLoaded=true;resolve();}; s.onerror=reject;
     document.head.appendChild(s);
   });
 }
@@ -495,31 +560,30 @@ function loadChartJS() {
 /* ---- HANDLERS GLOBALI ---- */
 window.statsPeriod = function(period, el) {
   currentPeriod = period;
-  document.querySelectorAll('#stats-period-filters .filter-chip').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('#stats-period-filters .filter-chip').forEach(c=>c.classList.remove('active'));
   el.classList.add('active');
+  const cr=document.getElementById('stats-custom-range');
+  if (cr) cr.style.display=period==='custom'?'block':'none';
+  if (period!=='custom') { destroyCharts(); loadStatsContent(); }
+};
 
-  const customRange = document.getElementById('stats-custom-range');
-  if (customRange) customRange.style.display = period === 'custom' ? 'block' : 'none';
-
-  if (period !== 'custom') {
-    destroyCharts();
-    loadStatsContent();
-  }
+window.statsSport = function(sport, el) {
+  currentSport = sport;
+  document.querySelectorAll('#stats-sport-filters .filter-chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  destroyCharts();
+  loadStatsContent();
 };
 
 window.applyCustomRange = function() {
   customFrom = document.getElementById('stats-from')?.value;
   customTo   = document.getElementById('stats-to')?.value;
-  if (!customFrom || !customTo) { return; }
-  if (customFrom > customTo) { customFrom = customTo; }
-  destroyCharts();
-  loadStatsContent();
+  if (!customFrom||!customTo) return;
+  if (customFrom>customTo) customFrom=customTo;
+  destroyCharts(); loadStatsContent();
 };
 
 function destroyCharts() {
-  if (typeof Chart === 'undefined') return;
-  document.querySelectorAll('#stats-content canvas').forEach(c => {
-    const ch = Chart.getChart(c);
-    if (ch) ch.destroy();
-  });
+  if (typeof Chart==='undefined') return;
+  document.querySelectorAll('#stats-content canvas').forEach(c=>{const ch=Chart.getChart(c);if(ch)ch.destroy();});
 }
