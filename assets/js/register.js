@@ -231,6 +231,7 @@ window.submitActivity = async function() {
 
   await saveActivity(activity);
   showToast(`${act.label} salvata ✓`);
+  window.autoBackupToDrive?.();
   renderRegister();
   await renderHome();
   navigateTo('home');

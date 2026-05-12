@@ -227,6 +227,15 @@ async function driveDownload() {
   return dlRes.text();
 }
 
+window.autoBackupToDrive = async function() {
+  if (!window.GOOGLE_CLIENT_ID || !_accessToken) return;
+  try {
+    const data = await exportAllActivities();
+    await driveUpload(JSON.stringify(data, null, 2));
+    localStorage.setItem('drive_last_backup', new Date().toISOString());
+  } catch (e) { /* silenzioso */ }
+};
+
 window.backupToDrive = async function() {
   if (!window.GOOGLE_CLIENT_ID) { showDriveSetupInstructions(); return; }
   showDriveStatus('Connessione a Google Drive…', 'info');
