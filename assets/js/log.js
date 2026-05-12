@@ -106,6 +106,7 @@ window.logFilterSport = function(sport, el) {
 window.deleteActivityUI = async function(id) {
   if (!window.confirm('Eliminare questa attività?')) return;
   await deleteActivity(id);
+  window.autoBackupToDrive?.();
   allActivities = allActivities.filter(a => a.id !== id);
   renderLogList();
   await renderHome();
@@ -206,9 +207,12 @@ window.saveEdit = async function(id) {
 
   // muscoli
   const chips = document.querySelectorAll('#edit-muscles .muscle-chip.selected');
-  if (chips.length) a.muscleGroups = [...chips].map(c => c.dataset.muscle);
+  if (document.getElementById('edit-muscles')) {
+    a.muscleGroups = chips.length ? [...chips].map(c => c.dataset.muscle) : null;
+  }
 
   await saveActivity(a);
+  window.autoBackupToDrive?.();
   closeEditModal();
   renderLogList();
   await renderHome();

@@ -25,11 +25,9 @@ const viewRenderers = {
 let activeView = null;
 
 async function navigate(viewId) {
+  navigateTo(viewId); // sempre eseguita, anche se già sulla stessa view
   if (viewId === activeView) return;
   activeView = viewId;
-
-  navigateTo(viewId);
-
   const render = viewRenderers[viewId];
   if (render) await render();
 }
