@@ -231,6 +231,7 @@ window.backupToDrive = async function() {
   if (!window.GOOGLE_CLIENT_ID) { showDriveSetupInstructions(); return; }
   showDriveStatus('Connessione a Google Drive…', 'info');
   try {
+    await getAccessToken(); // popup subito sul gesto utente, prima di qualsiasi async
     const data = await exportAllActivities();
     await driveUpload(JSON.stringify(data, null, 2));
     const now = new Date().toISOString();
@@ -250,6 +251,7 @@ window.restoreFromDrive = async function() {
   if (!window.confirm('Ripristinare da Drive? I dati attuali verranno sostituiti.')) return;
   showDriveStatus('Download da Drive…', 'info');
   try {
+    await getAccessToken(); // popup subito sul gesto utente, prima di qualsiasi async
     const jsonStr = await driveDownload();
     const data    = JSON.parse(jsonStr);
     if (!Array.isArray(data)) throw new Error('Formato non valido');
