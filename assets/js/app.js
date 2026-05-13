@@ -64,9 +64,17 @@ if ('serviceWorker' in navigator) {
   });
 }
 
+// Chiede al browser di non evictare mai lo storage di questa app
+async function requestPersistentStorage() {
+  if (!navigator.storage?.persist) return;
+  const already = await navigator.storage.persisted();
+  if (!already) await navigator.storage.persist();
+}
+
 // Init
 async function init() {
   await openDB();
+  await requestPersistentStorage();
   updateHeaderDate();
   await navigate('home');
 }

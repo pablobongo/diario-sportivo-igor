@@ -19,9 +19,11 @@ export function renderSettings() {
   if (!el) return;
 
   const lastBackup  = localStorage.getItem('drive_last_backup');
+  const daysSince   = lastBackup ? (Date.now() - new Date(lastBackup)) / 86400000 : Infinity;
+  const backupWarn  = daysSince > 7;
   const lastBackupStr = lastBackup
-    ? `Ultimo backup: ${new Date(lastBackup).toLocaleString('it-IT')}`
-    : 'Nessun backup ancora effettuato';
+    ? `${backupWarn ? '⚠️ ' : ''}Ultimo backup: ${new Date(lastBackup).toLocaleString('it-IT')}`
+    : '⚠️ Nessun backup ancora effettuato';
 
   el.innerHTML = `
     <div class="section-header mb-16">
@@ -179,6 +181,7 @@ async function getAccessToken() {
         if (resp.error) return reject(new Error(resp.error));
         _accessToken = resp.access_token;
         setTimeout(() => { _accessToken = null; }, (resp.expires_in - 60) * 1000);
+        scheduleAutoBackup();
         resolve(_accessToken);
       },
     });
@@ -227,6 +230,8 @@ async function driveDownload() {
   return dlRes.text();
 }
 
+// Backup silenzioso: funziona solo se il token è già attivo nella sessione corrente.
+// Viene schedulato ogni 30 minuti dopo che l'utente ha fatto il primo login Drive.
 window.autoBackupToDrive = async function() {
   if (!window.GOOGLE_CLIENT_ID || !_accessToken) return;
   try {
@@ -235,6 +240,12 @@ window.autoBackupToDrive = async function() {
     localStorage.setItem('drive_last_backup', new Date().toISOString());
   } catch (e) { /* silenzioso */ }
 };
+
+// Avvia il timer di auto-backup (chiamato dopo ogni autenticazione riuscita)
+function scheduleAutoBackup() {
+  clearInterval(window._autoBackupTimer);
+  window._autoBackupTimer = setInterval(window.autoBackupToDrive, 30 * 60 * 1000);
+}
 
 window.backupToDrive = async function() {
   if (!window.GOOGLE_CLIENT_ID) { showDriveSetupInstructions(); return; }
