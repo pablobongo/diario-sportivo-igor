@@ -1,4 +1,4 @@
-const CACHE_NAME = "diario-sportivo-igor-v8";
+const CACHE_NAME = "diario-sportivo-igor-v6";
 const APP_BASE   = "/diario-sportivo-igor/";
 
 const FILES_TO_CACHE = [
