@@ -11,6 +11,8 @@ let currentPeriod = '30';
 let customFrom    = '';
 let customTo      = '';
 let currentSport  = 'all';
+let heatmapYear   = new Date().getFullYear();
+let _allActivities = null; // cache attività complete per heatmap
 
 // Sport che hanno ritmo/velocità
 const PACE_SPORTS  = ['corsa', 'trekking', 'camminata'];
@@ -71,9 +73,12 @@ async function loadStatsContent() {
 
   container.innerHTML = `<div class="empty-state"><p>Caricamento…</p></div>`;
 
+  // Carica SEMPRE tutte le attività per la heatmap (indipendente dal filtro periodo)
+  _allActivities = await getAllActivities();
+
   let activities;
   if (currentPeriod === 'all') {
-    activities = await getAllActivities();
+    activities = _allActivities.slice();
   } else if (currentPeriod === 'custom') {
     const from = customFrom || lastNDays(30).from;
     const to   = customTo   || new Date().toISOString().slice(0, 10);
@@ -125,8 +130,6 @@ async function loadStatsContent() {
   const paceStats  = buildPaceStats(activities);
   const records    = buildRecords(activities);
   const weeklyData = buildWeeklyData(activities, currentPeriod === 'all' ? 156 : Math.min(Math.ceil(Number(currentPeriod)/7) + 2, 156));
-  const heatmapYear = new Date().getFullYear();
-
   container.innerHTML = `
     <div class="kpi-grid">
       <div class="kpi-card accent-card">
@@ -172,7 +175,18 @@ async function loadStatsContent() {
     </div>` : ''}
 
     <div class="card mt-16">
-      <div class="card-title">Heatmap ${heatmapYear}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div class="card-title" style="margin-bottom:0">Heatmap</div>
+        <div style="display:flex;gap:4px;align-items:center">
+          ${[2023,2024,2025,2026].map(y=>`
+            <button onclick="heatmapChangeYear(${y})" id="heatmap-btn-${y}"
+              style="padding:3px 10px;border-radius:20px;border:1.5px solid ${y===heatmapYear?'var(--primary)':'var(--border)'};
+                     background:${y===heatmapYear?'var(--primary)':'transparent'};
+                     color:${y===heatmapYear?'#fff':'var(--muted)'};
+                     font-size:0.75rem;font-family:var(--font-body);cursor:pointer;transition:all .2s">${y}</button>
+          `).join('')}
+        </div>
+      </div>
       <div id="heatmap-wrap" style="overflow-x:auto;padding:4px 0"></div>
     </div>
 
@@ -215,7 +229,7 @@ async function loadStatsContent() {
     </div>
   `;
 
-  renderHeatmap(activities, heatmapYear);
+  renderHeatmap(_allActivities, heatmapYear);
   await loadChartJS();
 
   const isDark    = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -587,3 +601,22 @@ function destroyCharts() {
   if (typeof Chart==='undefined') return;
   document.querySelectorAll('#stats-content canvas').forEach(c=>{const ch=Chart.getChart(c);if(ch)ch.destroy();});
 }
+
+window.heatmapChangeYear = function(year) {
+  heatmapYear = year;
+  // Aggiorna stile bottoni senza ricaricare tutto
+  [2023,2024,2025,2026].forEach(y => {
+    const btn = document.getElementById('heatmap-btn-'+y);
+    if (!btn) return;
+    if (y === year) {
+      btn.style.border = '1.5px solid var(--primary)';
+      btn.style.background = 'var(--primary)';
+      btn.style.color = '#fff';
+    } else {
+      btn.style.border = '1.5px solid var(--border)';
+      btn.style.background = 'transparent';
+      btn.style.color = 'var(--muted)';
+    }
+  });
+  if (_allActivities) renderHeatmap(_allActivities, year);
+};
